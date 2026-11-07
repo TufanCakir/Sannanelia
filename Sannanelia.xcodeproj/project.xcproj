@@ -40,7 +40,7 @@
         "CODE_SIGN_STYLE": "Automatic",
         "CURRENT_PROJECT_VERSION": "1",
         "DEVELOPMENT_TEAM": "HN763R468M",
-        "ENABLE_DEBUG_DYLIB": "NO",
+        "ENABLE_DEBUG_DYLIB": "YES",
         "ENABLE_PREVIEWS": "YES",
         "GENERATE_INFOPLIST_FILE": "YES",
         "INFOPLIST_KEY_LSApplicationCategoryType": "public.app-category.utilities",

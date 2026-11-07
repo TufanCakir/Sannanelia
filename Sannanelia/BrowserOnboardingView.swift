@@ -8,7 +8,6 @@
 import SwiftUI
 
 struct BrowserOnboardingView: View {
-
     let complete: () -> Void
 
     @AppStorage("searchEngine")
@@ -21,15 +20,8 @@ struct BrowserOnboardingView: View {
 
     private let pageCount = 3
 
-    private var selectedEngine: Binding<BrowserSearchEngine> {
-        Binding(
-            get: {
-                BrowserSearchEngine(rawValue: searchEngine) ?? .duckDuckGo
-            },
-            set: {
-                searchEngine = $0.rawValue
-            }
-        )
+    private var selectedEngine: BrowserSearchEngine {
+        BrowserSearchEngine(rawValue: searchEngine) ?? .duckDuckGo
     }
 
     private var isLastPage: Bool {
@@ -41,93 +33,41 @@ struct BrowserOnboardingView: View {
             let compact = geometry.size.width < 600
 
             VStack(spacing: 0) {
-
-                // MARK: - Header
-
                 header
                     .padding(.top, 16)
                     .padding(.bottom, 12)
 
-                // MARK: - Pages
-
                 TabView(selection: $page) {
-                    welcomePage
-                        .tag(0)
-
-                    searchPage
-                        .tag(1)
-
-                    readyPage
-                        .tag(2)
+                    welcomePage.tag(0)
+                    searchPage.tag(1)
+                    readyPage.tag(2)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
-                .animation(
-                    reduceMotion ? nil : .easeInOut(duration: 0.25),
-                    value: page
-                )
 
-                // MARK: - Footer
-
-                VStack(spacing: 20) {
-                    pageIndicator
-
-                    HStack(spacing: 12) {
-                        if page > 0 {
-                            Button {
-                                changePage(to: page - 1)
-                            } label: {
-                                Label(
-                                    "Back",
-                                    systemImage: "chevron.left"
-                                )
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 16)
-                            }
-                            .buttonStyle(.bordered)
-                        }
-
-                        Button {
-                            if isLastPage {
-                                complete()
-                            } else {
-                                changePage(to: page + 1)
-                            }
-                        } label: {
-                            HStack(spacing: 10) {
-                                Text(
-                                    isLastPage
-                                        ? "Start browsing"
-                                        : "Continue"
-                                )
-
-                                Image(
-                                    systemName: isLastPage
-                                        ? "checkmark"
-                                        : "arrow.right"
-                                )
-                            }
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(ThemeManager.gold(scheme))
-                    }
-                }
-                .padding(.bottom, 20)
+                footer
+                    .padding(.top, 12)
+                    .padding(.bottom, 20)
             }
             .padding(.horizontal, compact ? 20 : 40)
-            .frame(maxWidth: 680)
+            .frame(maxWidth: 620)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .background(ThemeManager.background(scheme))
+        .foregroundStyle(ThemeManager.foreground(scheme))
     }
 
     // MARK: - Header
 
     private var header: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "sun.max")
+        HStack(spacing: 10) {
+            Image(
+                systemName: BrowserAppearance.symbol(
+                    scheme,
+                    light: "sun.max",
+                    dark: "moon"
+                )
+            )
+            .contentTransition(.symbolEffect(.replace))
 
             Text("SANNANELIA")
                 .tracking(3)
@@ -141,16 +81,11 @@ struct BrowserOnboardingView: View {
 
     private var welcomePage: some View {
         pageContainer {
-            VStack(spacing: 24) {
+            VStack(spacing: 22) {
                 Image(systemName: "sun.max")
-                    .font(
-                        .system(
-                            size: 70,
-                            weight: .ultraLight
-                        )
-                    )
+                    .font(.system(size: 68, weight: .ultraLight))
                     .foregroundStyle(ThemeManager.gold(scheme))
-                    .frame(width: 150, height: 150)
+                    .frame(width: 140, height: 140)
                     .background(
                         ThemeManager.surface(scheme),
                         in: Circle()
@@ -206,10 +141,10 @@ struct BrowserOnboardingView: View {
     private func searchEngineRow(
         _ engine: BrowserSearchEngine
     ) -> some View {
-        let isSelected = selectedEngine.wrappedValue == engine
+        let isSelected = selectedEngine == engine
 
         return Button {
-            selectedEngine.wrappedValue = engine
+            searchEngine = engine.rawValue
         } label: {
             HStack(spacing: 14) {
                 Image(systemName: engine.symbol)
@@ -233,7 +168,11 @@ struct BrowserOnboardingView: View {
                         ? "checkmark.circle.fill"
                         : "circle"
                 )
-                .foregroundStyle(ThemeManager.gold(scheme))
+                .foregroundStyle(
+                    isSelected
+                        ? ThemeManager.gold(scheme)
+                        : .secondary
+                )
             }
             .padding(16)
             .frame(maxWidth: .infinity)
@@ -241,27 +180,28 @@ struct BrowserOnboardingView: View {
                 ThemeManager.surface(scheme),
                 in: RoundedRectangle(cornerRadius: 16)
             )
+            .overlay {
+                RoundedRectangle(cornerRadius: 16)
+                    .strokeBorder(
+                        ThemeManager.gold(scheme)
+                            .opacity(isSelected ? 0.65 : 0),
+                        lineWidth: 1.5
+                    )
+            }
             .contentShape(RoundedRectangle(cornerRadius: 16))
         }
         .buttonStyle(.plain)
-        .foregroundStyle(ThemeManager.foreground(scheme))
-        .accessibilityAddTraits(
-            isSelected ? .isSelected : []
-        )
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     // MARK: - Ready
 
     private var readyPage: some View {
         pageContainer {
-            VStack(spacing: 24) {
+            VStack(spacing: 22) {
                 Image(systemName: "checkmark.circle")
-                    .font(
-                        .system(
-                            size: 72,
-                            weight: .ultraLight
-                        )
-                    )
+                    .font(.system(size: 72, weight: .ultraLight))
                     .foregroundStyle(ThemeManager.gold(scheme))
                     .accessibilityHidden(true)
 
@@ -270,7 +210,7 @@ struct BrowserOnboardingView: View {
                     .fontWeight(.semibold)
 
                 Text(
-                    "Your search engine is \(selectedEngine.wrappedValue.rawValue)."
+                    "Your search engine is \(selectedEngine.rawValue)."
                 )
                 .foregroundStyle(.secondary)
 
@@ -289,17 +229,59 @@ struct BrowserOnboardingView: View {
     ) -> some View {
         GeometryReader { geometry in
             ScrollView {
-                VStack {
-                    content()
-                }
-                .frame(
-                    maxWidth: .infinity,
-                    minHeight: geometry.size.height
-                )
+                content()
+                    .frame(
+                        maxWidth: .infinity,
+                        minHeight: geometry.size.height
+                    )
             }
             .scrollIndicators(.hidden)
         }
     }
+
+    // MARK: - Footer
+
+    private var footer: some View {
+        VStack(spacing: 20) {
+            pageIndicator
+
+            HStack(spacing: 12) {
+                if page > 0 {
+                    Button {
+                        changePage(to: page - 1)
+                    } label: {
+                        Label("Back", systemImage: "chevron.left")
+                            .frame(maxWidth: .infinity)
+                            .frame(minHeight: 52)
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                Button {
+                    if isLastPage {
+                        complete()
+                    } else {
+                        changePage(to: page + 1)
+                    }
+                } label: {
+                    Label(
+                        isLastPage
+                            ? String(localized: "Start browsing")
+                            : String(localized: "Continue"),
+                        systemImage: isLastPage
+                            ? "checkmark"
+                            : "arrow.right"
+                    )
+                    .frame(maxWidth: .infinity)
+                    .frame(minHeight: 52)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(ThemeManager.gold(scheme))
+            }
+            .font(.headline)
+        }
+    }
+
     // MARK: - Page Indicator
 
     private var pageIndicator: some View {
@@ -317,9 +299,13 @@ struct BrowserOnboardingView: View {
                     )
             }
         }
+        .animation(
+            reduceMotion ? nil : .easeInOut(duration: 0.25),
+            value: page
+        )
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            "Page \(page + 1) of \(pageCount)"
+            Text("Page \(page + 1) of \(pageCount)")
         )
     }
 

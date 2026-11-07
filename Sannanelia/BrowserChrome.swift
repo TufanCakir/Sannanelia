@@ -9,12 +9,6 @@ import SwiftUI
 import UIKit
 import WebKit
 
-enum BrowserAppearance {
-    static func symbol(_ scheme: ColorScheme) -> String {
-        scheme == .dark ? "moon" : "sun.max"
-    }
-}
-
 struct BrowserAddressBar: View {
     let session: BrowserSession
     let edit: () -> Void
@@ -30,6 +24,7 @@ struct BrowserAddressBar: View {
                         : (session.hasSecureContent ? "lock" : "lock.open")
                 )
                 .foregroundStyle(ThemeManager.accent(scheme))
+                .contentTransition(.symbolEffect(.replace))
                 .accessibilityLabel(
                     session.isHome
                         ? Text("Home")
@@ -102,6 +97,7 @@ struct BrowserHomeView: View {
     let downloads: () -> Void
     let open: (URL) -> Void
     @State private var searchText = ""
+    @FocusState private var isSearchFocused: Bool
     @Environment(\.colorScheme) private var scheme
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -114,8 +110,15 @@ struct BrowserHomeView: View {
         ScrollView {
             VStack(spacing: 30) {
                 brand
+                    .contentShape(Rectangle())
+                    .onTapGesture(perform: dismissKeyboard)
+
                 hero
+                    .contentShape(Rectangle())
+                    .onTapGesture(perform: dismissKeyboard)
+
                 searchButton
+
                 shortcuts
                 favoritesSection
                 frequentlyVisitedSection
@@ -135,7 +138,19 @@ struct BrowserHomeView: View {
             .frame(maxWidth: 680)
             .frame(maxWidth: .infinity)
         }
+        .scrollDismissesKeyboard(.interactively)
+        .background {
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    isSearchFocused = false
+                }
+        }
         .foregroundStyle(ThemeManager.foreground(scheme))
+    }
+
+    private func dismissKeyboard() {
+        isSearchFocused = false
     }
 
     private var brand: some View {
@@ -188,6 +203,7 @@ struct BrowserHomeView: View {
 
     private var searchButton: some View {
         TextField("Search or enter address", text: $searchText)
+            .focused($isSearchFocused)
             .textInputAutocapitalization(.never)
             .autocorrectionDisabled()
             .keyboardType(.webSearch)
@@ -199,6 +215,7 @@ struct BrowserHomeView: View {
 
                 guard !input.isEmpty else { return }
 
+                isSearchFocused = false
                 search(input)
                 searchText = ""
             }
@@ -699,10 +716,21 @@ struct BrowserSearchView: View {
                     )
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Explore")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+
+                    Button("Done") {
+                        isFocused = false
+                    }
                 }
             }
             .onAppear {
@@ -715,6 +743,8 @@ struct BrowserSearchView: View {
     private func open() {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         else { return }
+
+        isFocused = false
         submit(text)
         dismiss()
     }
