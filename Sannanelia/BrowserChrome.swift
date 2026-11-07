@@ -109,9 +109,6 @@ struct BrowserHomeView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 30) {
-                brand
-                    .contentShape(Rectangle())
-                    .onTapGesture(perform: dismissKeyboard)
 
                 hero
                     .contentShape(Rectangle())
@@ -153,23 +150,12 @@ struct BrowserHomeView: View {
         isSearchFocused = false
     }
 
-    private var brand: some View {
-        HStack(spacing: 8) {
-            Image(systemName: BrowserAppearance.symbol(scheme))
-                .accessibilityHidden(true)
-            Text("SANNANELIA")
-                .tracking(3)
-        }
-        .font(.caption.weight(.semibold))
-        .foregroundStyle(ThemeManager.accent(scheme))
-        .frame(maxWidth: .infinity)
-    }
-
     private var hero: some View {
         VStack(spacing: 12) {
             Image(systemName: BrowserAppearance.symbol(scheme))
                 .contentTransition(.symbolEffect(.replace))
                 .font(.system(size: 47, weight: .ultraLight))
+                .contentTransition(.symbolEffect(.replace))
                 .foregroundStyle(ThemeManager.gold(scheme))
                 .frame(width: 112, height: 112)
                 .background(ThemeManager.surface(scheme), in: Circle())
@@ -380,12 +366,21 @@ struct BrowserErrorView: View {
     let retry: () -> Void
     let edit: () -> Void
 
+    @Environment(\.colorScheme) private var scheme
+
     var body: some View {
         ContentUnavailableView {
             Label {
                 Text(failure.title)
             } icon: {
-                Image(systemName: "sun.haze")
+                Image(
+                    systemName: BrowserAppearance.symbol(
+                        scheme,
+                        light: "sun.max",
+                        dark: "moon"
+                    )
+                )
+                .contentTransition(.symbolEffect(.replace))
             }
         } description: {
             Text(failure.message)
