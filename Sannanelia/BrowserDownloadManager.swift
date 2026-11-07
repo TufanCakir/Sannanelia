@@ -1,3 +1,10 @@
+//
+//  BrowserDownloadManager.swift
+//  Sannanelia
+//
+//  Created by Tufan Cakir on 07.11.26.
+//
+
 import Foundation
 import Observation
 import SwiftData
@@ -25,7 +32,12 @@ final class BrowserDownloadItem: Identifiable {
     var fractionCompleted = 0.0
     var totalBytes: Int64 = 0
 
-    init(id: UUID = UUID(), isPrivate: Bool, filename: String = "", status: Status = .downloading) {
+    init(
+        id: UUID = UUID(),
+        isPrivate: Bool,
+        filename: String = "",
+        status: Status = .downloading
+    ) {
         self.id = id
         self.isPrivate = isPrivate
         self.filename = filename
@@ -38,27 +50,48 @@ final class BrowserDownloadManager: NSObject, WKDownloadDelegate {
     private(set) var items: [BrowserDownloadItem] = []
     var storageError = false
     @ObservationIgnored private var context: ModelContext?
-    @ObservationIgnored private var active: [ObjectIdentifier: (WKDownload, BrowserDownloadItem)] = [:]
-    @ObservationIgnored private var observations: [ObjectIdentifier: NSKeyValueObservation] = [:]
-    @ObservationIgnored private let privateRoot = FileManager.default.temporaryDirectory
-        .appending(path: "SannaneliaPrivateDownloads", directoryHint: .isDirectory)
+    @ObservationIgnored private var active:
+        [ObjectIdentifier: (WKDownload, BrowserDownloadItem)] = [:]
+    @ObservationIgnored private var observations:
+        [ObjectIdentifier: NSKeyValueObservation] = [:]
+    @ObservationIgnored private let privateRoot = FileManager.default
+        .temporaryDirectory
+        .appending(
+            path: "SannaneliaPrivateDownloads",
+            directoryHint: .isDirectory
+        )
         .appending(path: UUID().uuidString, directoryHint: .isDirectory)
 
     static var root: URL {
-        URL.applicationSupportDirectory.appending(path: "Downloads", directoryHint: .isDirectory)
+        URL.applicationSupportDirectory.appending(
+            path: "Downloads",
+            directoryHint: .isDirectory
+        )
     }
 
     func configure(_ context: ModelContext) {
         guard self.context == nil else { return }
         self.context = context
         do {
-            let records = try context.fetch(FetchDescriptor<DownloadRecord>(sortBy: [SortDescriptor(\.createdAt, order: .reverse)]))
+            let records = try context.fetch(
+                FetchDescriptor<DownloadRecord>(sortBy: [
+                    SortDescriptor(\.createdAt, order: .reverse)
+                ])
+            )
             items = records.map { record in
-                let status = BrowserDownloadItem.Status(rawValue: record.status) ?? .failed
-                let item = BrowserDownloadItem(id: record.id, isPrivate: false, filename: record.filename,
-                                               status: status == .downloading ? .failed : status)
+                let status =
+                    BrowserDownloadItem.Status(rawValue: record.status)
+                    ?? .failed
+                let item = BrowserDownloadItem(
+                    id: record.id,
+                    isPrivate: false,
+                    filename: record.filename,
+                    status: status == .downloading ? .failed : status
+                )
                 item.fileURL = Self.root.appending(path: record.relativePath)
-                if status == .finished, let url = item.fileURL, !FileManager.default.fileExists(atPath: url.path) {
+                if status == .finished, let url = item.fileURL,
+                    !FileManager.default.fileExists(atPath: url.path)
+                {
                     item.status = .failed
                 }
                 return item
@@ -72,7 +105,10 @@ final class BrowserDownloadManager: NSObject, WKDownloadDelegate {
         let key = ObjectIdentifier(download)
         active[key] = (download, item)
         download.delegate = self
-        observations[key] = download.progress.observe(\.fractionCompleted, options: [.initial, .new]) { [weak self] _, _ in
+        observations[key] = download.progress.observe(
+            \.fractionCompleted,
+            options: [.initial, .new]
+        ) { [weak self] _, _ in
             Task { @MainActor [weak self] in
                 guard let pair = self?.active[key] else { return }
                 pair.1.fractionCompleted = pair.0.progress.fractionCompleted
@@ -81,16 +117,31 @@ final class BrowserDownloadManager: NSObject, WKDownloadDelegate {
         }
     }
 
-    func download(_ download: WKDownload, decideDestinationUsing response: URLResponse,
-                  suggestedFilename: String, completionHandler: @escaping (URL?) -> Void) {
-        guard let item = active[ObjectIdentifier(download)]?.1 else { completionHandler(nil); return }
+    func download(
+        _ download: WKDownload,
+        decideDestinationUsing response: URLResponse,
+        suggestedFilename: String,
+        completionHandler: @escaping (URL?) -> Void
+    ) {
+        guard let item = active[ObjectIdentifier(download)]?.1 else {
+            completionHandler(nil)
+            return
+        }
         let proposed = (suggestedFilename as NSString).lastPathComponent
-        let filename = proposed.isEmpty || proposed == "." || proposed == ".." ? "Download" : proposed
+        let filename =
+            proposed.isEmpty || proposed == "." || proposed == ".."
+            ? "Download" : proposed
         let folder = (item.isPrivate ? privateRoot : Self.root)
             .appending(path: item.id.uuidString, directoryHint: .isDirectory)
         do {
-            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            let destination = folder.appending(path: filename, directoryHint: .notDirectory)
+            try FileManager.default.createDirectory(
+                at: folder,
+                withIntermediateDirectories: true
+            )
+            let destination = folder.appending(
+                path: filename,
+                directoryHint: .notDirectory
+            )
             item.filename = filename
             item.fileURL = destination
             save(item)
@@ -110,7 +161,11 @@ final class BrowserDownloadManager: NSObject, WKDownloadDelegate {
         finish(download)
     }
 
-    func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
+    func download(
+        _ download: WKDownload,
+        didFailWithError error: Error,
+        resumeData: Data?
+    ) {
         guard let item = active[ObjectIdentifier(download)]?.1 else { return }
         item.status = .failed
         save(item)
@@ -136,12 +191,22 @@ final class BrowserDownloadManager: NSObject, WKDownloadDelegate {
     func delete(_ item: BrowserDownloadItem) {
         if item.status == .downloading { cancel(item) }
         do {
-            if let url = item.fileURL, FileManager.default.fileExists(atPath: url.deletingLastPathComponent().path) {
-                try FileManager.default.removeItem(at: url.deletingLastPathComponent())
+            if let url = item.fileURL,
+                FileManager.default.fileExists(
+                    atPath: url.deletingLastPathComponent().path
+                )
+            {
+                try FileManager.default.removeItem(
+                    at: url.deletingLastPathComponent()
+                )
             }
             if !item.isPrivate, let context {
                 let id = item.id
-                if let record = try context.fetch(FetchDescriptor<DownloadRecord>(predicate: #Predicate { $0.id == id })).first {
+                if let record = try context.fetch(
+                    FetchDescriptor<DownloadRecord>(
+                        predicate: #Predicate { $0.id == id }
+                    )
+                ).first {
                     context.delete(record)
                     try context.save()
                 }
@@ -161,15 +226,27 @@ final class BrowserDownloadManager: NSObject, WKDownloadDelegate {
     }
 
     private func save(_ item: BrowserDownloadItem) {
-        guard !item.isPrivate, let context, let fileURL = item.fileURL else { return }
+        guard !item.isPrivate, let context, let fileURL = item.fileURL else {
+            return
+        }
         do {
             let id = item.id
-            if let record = try context.fetch(FetchDescriptor<DownloadRecord>(predicate: #Predicate { $0.id == id })).first {
+            if let record = try context.fetch(
+                FetchDescriptor<DownloadRecord>(
+                    predicate: #Predicate { $0.id == id }
+                )
+            ).first {
                 record.status = item.status.rawValue
             } else {
-                context.insert(DownloadRecord(id: item.id, filename: item.filename,
-                                              relativePath: item.id.uuidString + "/" + fileURL.lastPathComponent,
-                                              status: item.status.rawValue))
+                context.insert(
+                    DownloadRecord(
+                        id: item.id,
+                        filename: item.filename,
+                        relativePath: item.id.uuidString + "/"
+                            + fileURL.lastPathComponent,
+                        status: item.status.rawValue
+                    )
+                )
             }
             try context.save()
         } catch {

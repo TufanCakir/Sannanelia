@@ -1,6 +1,19 @@
+//
+//  BrowserChrome.swift
+//  Sannanelia
+//
+//  Created by Tufan Cakir on 07.11.26.
+//
+
 import SwiftUI
-import WebKit
 import UIKit
+import WebKit
+
+enum BrowserAppearance {
+    static func symbol(_ scheme: ColorScheme) -> String {
+        scheme == .dark ? "moon" : "sun.max"
+    }
+}
 
 struct BrowserAddressBar: View {
     let session: BrowserSession
@@ -11,10 +24,19 @@ struct BrowserAddressBar: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
-                Image(systemName: session.isHome ? "sun.max" : (session.hasSecureContent ? "lock" : "lock.open"))
-                    .foregroundStyle(ThemeManager.accent(scheme))
-                    .accessibilityLabel(session.isHome ? Text("Home") :
-                        (session.hasSecureContent ? Text("Encrypted connection") : Text("Connection is not fully secure")))
+                Image(
+                    systemName: session.isHome
+                        ? BrowserAppearance.symbol(scheme)
+                        : (session.hasSecureContent ? "lock" : "lock.open")
+                )
+                .foregroundStyle(ThemeManager.accent(scheme))
+                .accessibilityLabel(
+                    session.isHome
+                        ? Text("Home")
+                        : (session.hasSecureContent
+                            ? Text("Encrypted connection")
+                            : Text("Connection is not fully secure"))
+                )
                 Button(action: edit) {
                     if session.isHome {
                         Text("Search or enter address")
@@ -30,13 +52,22 @@ struct BrowserAddressBar: View {
                 .keyboardShortcut("l", modifiers: .command)
                 if !session.isHome {
                     Button {
-                        if session.isLoading { session.webView.stopLoading() }
-                        else { session.reload() }
+                        if session.isLoading {
+                            session.webView.stopLoading()
+                        } else {
+                            session.reload()
+                        }
                     } label: {
-                        Image(systemName: session.isLoading ? "xmark" : "arrow.clockwise")
-                            .frame(minWidth: 44, minHeight: 44)
+                        Image(
+                            systemName: session.isLoading
+                                ? "xmark" : "arrow.clockwise"
+                        )
+                        .frame(minWidth: 44, minHeight: 44)
                     }
-                    .accessibilityLabel(session.isLoading ? Text("Stop loading") : Text("Reload"))
+                    .accessibilityLabel(
+                        session.isLoading
+                            ? Text("Stop loading") : Text("Reload")
+                    )
                 }
             }
             .padding(.leading, 18)
@@ -45,120 +76,286 @@ struct BrowserAddressBar: View {
             if session.isLoading && !session.isHome {
                 ProgressView(value: session.progress)
                     .tint(ThemeManager.accent(scheme))
-                    .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: session.progress)
+                    .animation(
+                        reduceMotion ? nil : .easeOut(duration: 0.2),
+                        value: session.progress
+                    )
                     .accessibilityLabel("Loading page")
             }
         }
         .foregroundStyle(ThemeManager.foreground(scheme))
-        .background(ThemeManager.surface(scheme), in: RoundedRectangle(cornerRadius: 22))
+        .background(
+            ThemeManager.surface(scheme),
+            in: RoundedRectangle(cornerRadius: 22)
+        )
         .padding(.horizontal)
         .padding(.vertical, 8)
     }
 }
 
 struct BrowserHomeView: View {
-    let search: () -> Void
+    let search: (String) -> Void
     let data: BrowserDataService
     let bookmarks: () -> Void
     let history: () -> Void
     let privateTab: () -> Void
     let downloads: () -> Void
     let open: (URL) -> Void
+    @State private var searchText = ""
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private let columns = [
+        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: 12),
+    ]
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 28) {
-                HStack(spacing: 8) {
-                    Image(systemName: "sun.max").accessibilityHidden(true)
-                    Text("SANNANELIA").font(.caption.weight(.semibold)).tracking(3)
-                }
+            VStack(spacing: 30) {
+                brand
+                hero
+                searchButton
+                shortcuts
+                favoritesSection
+                frequentlyVisitedSection
+                Text(
+                    scheme == .dark
+                        ? "A little moonlight. A world to discover."
+                        : "A little sunlight. A world to discover."
+                )
+                .font(.footnote)
                 .foregroundStyle(ThemeManager.accent(scheme))
-                .padding(.top, 32)
-
-                Spacer(minLength: 30)
-                Image(systemName: "sun.max")
-                    .font(.system(.largeTitle, design: .rounded).weight(.ultraLight))
-                    .padding(30)
-                    .background(ThemeManager.surface(scheme), in: Circle())
-                    .foregroundStyle(ThemeManager.gold(scheme))
-                    .accessibilityHidden(true)
-
-                VStack(spacing: 12) {
-                    Text("Sannanelia")
-                        .font(.system(.largeTitle, design: .serif).weight(.medium))
-                        .accessibilityAddTraits(.isHeader)
-                    Text("Discover with serenity.")
-                        .font(.title3)
-                        .foregroundStyle(ThemeManager.accent(scheme))
-                        .multilineTextAlignment(.center)
-                }
-
-                Button(action: search) {
-                    Label("Begin exploring", systemImage: "magnifyingglass")
-                        .font(.body.weight(.medium))
-                        .padding(.horizontal, 26)
-                        .padding(.vertical, 18)
-                }
-                .buttonStyle(.plain)
-                .background(ThemeManager.surface(scheme), in: Capsule())
-                .padding(.top, 12)
-
-                ViewThatFits {
-                    HStack(spacing: 20) { quickLinks }
-                    VStack(spacing: 16) { quickLinks }
-                }
-                if !data.bookmarks.isEmpty {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Favorites").font(.headline)
-                        ForEach(Array(data.bookmarks.prefix(6))) { bookmark in
-                            Button {
-                                if let url = URL(string: bookmark.url) { open(url) }
-                            } label: {
-                                BrowserLibraryRow(title: bookmark.title, url: bookmark.url, symbol: "star")
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                if !data.history.isEmpty {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Frequently visited").font(.headline)
-                        ForEach(Array(data.history.sorted { $0.visitCount > $1.visitCount }.prefix(4))) { entry in
-                            Button {
-                                if let url = URL(string: entry.url) { open(url) }
-                            } label: {
-                                BrowserLibraryRow(title: entry.title, url: entry.url, symbol: "globe")
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                Text("A little sunlight. A world to discover.")
-                    .font(.footnote)
-                    .foregroundStyle(ThemeManager.accent(scheme))
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 28)
-                Spacer(minLength: 30)
+                .multilineTextAlignment(.center)
+                .padding(.vertical, 18)
             }
-            .padding(24)
-            .frame(maxWidth: 700)
+            .padding(.horizontal, 22)
+            .padding(.top, 30)
+            .padding(.bottom, 40)
+            .frame(maxWidth: 680)
             .frame(maxWidth: .infinity)
         }
+        .foregroundStyle(ThemeManager.foreground(scheme))
     }
-    private var quickLinks: some View {
-        Group {
-            Button("Bookmarks", systemImage: "star", action: bookmarks)
-            Button("History", systemImage: "clock", action: history)
-            Button("Downloads", systemImage: "arrow.down.circle", action: downloads)
-            Button("Private tab", systemImage: "hand.raised", action: privateTab)
+
+    private var brand: some View {
+        HStack(spacing: 8) {
+            Image(systemName: BrowserAppearance.symbol(scheme))
+                .accessibilityHidden(true)
+            Text("SANNANELIA")
+                .tracking(3)
         }
-        .font(.subheadline)
-        .buttonStyle(.bordered)
-        .buttonBorderShape(.capsule)
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(ThemeManager.accent(scheme))
+        .frame(maxWidth: .infinity)
     }
+
+    private var hero: some View {
+        VStack(spacing: 12) {
+            Image(systemName: BrowserAppearance.symbol(scheme))
+                .contentTransition(.symbolEffect(.replace))
+                .font(.system(size: 47, weight: .ultraLight))
+                .foregroundStyle(ThemeManager.gold(scheme))
+                .frame(width: 112, height: 112)
+                .background(ThemeManager.surface(scheme), in: Circle())
+                .overlay {
+                    Circle()
+                        .strokeBorder(
+                            ThemeManager.gold(scheme).opacity(0.25),
+                            lineWidth: 1
+                        )
+                }
+                .accessibilityHidden(true)
+
+            Text("Sannanelia")
+                .font(.system(size: 38, weight: .medium, design: .serif))
+                .minimumScaleFactor(0.75)
+                .lineLimit(1)
+                .accessibilityAddTraits(.isHeader)
+
+            Text(
+                scheme == .dark
+                    ? "Explore beneath the stars."
+                    : "Discover with serenity."
+            )
+            .font(.subheadline)
+            .foregroundStyle(ThemeManager.accent(scheme))
+            .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 12)
+    }
+
+    private var searchButton: some View {
+        TextField("Search or enter address", text: $searchText)
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+            .keyboardType(.webSearch)
+            .submitLabel(.go)
+            .onSubmit {
+                let input = searchText.trimmingCharacters(
+                    in: .whitespacesAndNewlines
+                )
+
+                guard !input.isEmpty else { return }
+
+                search(input)
+                searchText = ""
+            }
+            .padding(.horizontal, 18)
+            .frame(minHeight: 60)
+            .background(
+                ThemeManager.surface(scheme),
+                in: RoundedRectangle(cornerRadius: 20)
+            )
+    }
+
+    private var shortcuts: some View {
+        LazyVGrid(columns: columns, spacing: 12) {
+            shortcut("Bookmarks", icon: "star", action: bookmarks)
+            shortcut("History", icon: "clock.arrow.circlepath", action: history)
+            shortcut("Downloads", icon: "arrow.down.circle", action: downloads)
+            shortcut("Private tab", icon: "hand.raised", action: privateTab)
+        }
+    }
+
+    private func shortcut(
+        _ title: LocalizedStringKey,
+        icon: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 11) {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundStyle(ThemeManager.gold(scheme))
+                    .frame(width: 28)
+                Text(title)
+                    .font(.subheadline.weight(.medium))
+                    .lineLimit(dynamicTypeSize.isAccessibilitySize ? 2 : 1)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 14)
+            .frame(minHeight: 64)
+            .background(
+                ThemeManager.surface(scheme),
+                in: RoundedRectangle(cornerRadius: 18)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 18))
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var favoritesSection: some View {
+        if !data.bookmarks.isEmpty {
+            VStack(alignment: .leading, spacing: 14) {
+                sectionHeader("Favorites", action: bookmarks)
+                VStack(spacing: 2) {
+                    ForEach(Array(data.bookmarks.prefix(6))) { bookmark in
+                        Button {
+                            if let url = URL(string: bookmark.url),
+                                let scheme = url.scheme?.lowercased(),
+                                ["https", "http"].contains(scheme)
+                            {
+                                open(url)
+                            }
+                        } label: {
+                            BrowserLibraryRow(
+                                title: bookmark.title,
+                                url: bookmark.url,
+                                symbol: "star"
+                            )
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 5)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 8)
+                .background(
+                    ThemeManager.surface(scheme),
+                    in: RoundedRectangle(cornerRadius: 20)
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var frequentlyVisitedSection: some View {
+        if !data.history.isEmpty {
+            VStack(alignment: .leading, spacing: 14) {
+                sectionHeader("Frequently visited", action: history)
+                VStack(spacing: 2) {
+                    ForEach(
+                        Array(
+                            data.history.sorted {
+                                $0.visitCount > $1.visitCount
+                            }.prefix(4)
+                        )
+                    ) { entry in
+                        Button {
+                            if let url = URL(string: entry.url),
+                                let scheme = url.scheme?.lowercased(),
+                                ["https", "http"].contains(scheme)
+                            {
+                                open(url)
+                            }
+                        } label: {
+                            BrowserLibraryRow(
+                                title: entry.title,
+                                url: entry.url,
+                                symbol: "globe"
+                            )
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 5)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 8)
+                .background(
+                    ThemeManager.surface(scheme),
+                    in: RoundedRectangle(cornerRadius: 20)
+                )
+            }
+        }
+    }
+
+    private func sectionHeader(
+        _ title: LocalizedStringKey,
+        action: @escaping () -> Void
+    ) -> some View {
+        HStack {
+            Text(title)
+                .font(.headline)
+                .accessibilityAddTraits(.isHeader)
+            Spacer()
+            Button(action: action) {
+                Image(systemName: "arrow.up.right")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(ThemeManager.accent(scheme))
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Show all")
+        }
+    }
+}
+
+#Preview {
+    BrowserHomeView(
+        search: { _ in },
+        data: BrowserDataService(),
+        bookmarks: {},
+        history: {},
+        privateTab: {},
+        downloads: {},
+        open: { _ in }
+    )
 }
 
 struct BrowserErrorView: View {
@@ -168,20 +365,29 @@ struct BrowserErrorView: View {
 
     var body: some View {
         ContentUnavailableView {
-            Label { Text(failure.title) } icon: { Image(systemName: "sun.haze") }
+            Label {
+                Text(failure.title)
+            } icon: {
+                Image(systemName: "sun.haze")
+            }
         } description: {
             Text(failure.message)
         } actions: {
             if case .invalidAddress = failure {
-                Button("Edit address", action: edit).buttonStyle(.borderedProminent)
+                Button("Edit address", action: edit).buttonStyle(
+                    .borderedProminent
+                )
             } else {
-                Button("Try again", action: retry).buttonStyle(.borderedProminent)
+                Button("Try again", action: retry).buttonStyle(
+                    .borderedProminent
+                )
                 Button("Edit address", action: edit)
             }
         }
     }
 }
 
+/// Replace only the existing BrowserNavigationBar with this view.
 struct BrowserNavigationBar: View {
     let session: BrowserSession
     let manager: BrowserTabManager
@@ -192,83 +398,222 @@ struct BrowserNavigationBar: View {
     let downloads: () -> Void
     let find: () -> Void
     let settings: () -> Void
+    let developerTools: () -> Void
+
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private var canGoBack: Bool {
+        session.canGoBack || (session.isHome && session.url != nil)
+    }
+
+    private var hasPage: Bool {
+        !session.isHome && session.url != nil
+    }
 
     var body: some View {
         HStack(spacing: 4) {
-            Button(action: session.back) {
-                Label("Back", systemImage: "chevron.backward").frame(minWidth: 44, minHeight: 44)
+            navigationButton(
+                "Back",
+                symbol: "chevron.backward",
+                enabled: canGoBack
+            ) {
+                session.back()
             }
-            .disabled(!session.canGoBack && !(session.isHome && session.url != nil))
             .keyboardShortcut("[", modifiers: .command)
-            Spacer(minLength: 0)
-            Button(action: session.forward) {
-                Label("Forward", systemImage: "chevron.forward").frame(minWidth: 44, minHeight: 44)
+
+            navigationButton(
+                "Forward",
+                symbol: "chevron.forward",
+                enabled: !session.isHome && session.canGoForward
+            ) {
+                session.forward()
             }
-            .disabled(session.isHome || !session.canGoForward)
             .keyboardShortcut("]", modifiers: .command)
+
             Spacer(minLength: 0)
-            Button(action: session.goHome) {
-                Label("Home", systemImage: "sun.max").frame(minWidth: 44, minHeight: 44)
+
+            navigationButton(
+                "Home",
+                symbol: BrowserAppearance.symbol(scheme),
+                enabled: !session.isHome
+            ) {
+                session.goHome()
             }
+            .foregroundStyle(ThemeManager.gold(scheme))
+
             Spacer(minLength: 0)
+
             Button(action: tabs) {
-                Text(manager.tabs.count, format: .number)
-                    .font(.body.weight(.semibold))
-                    .padding(6)
-                    .overlay(RoundedRectangle(cornerRadius: 5).stroke(lineWidth: 1.5))
-                    .frame(minWidth: 44, minHeight: 44)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .strokeBorder(
+                            ThemeManager.accent(scheme),
+                            lineWidth: 1.5
+                        )
+                        .frame(width: 25, height: 25)
+                    Text(manager.tabs.count, format: .number)
+                        .font(
+                            .system(
+                                size: 12,
+                                weight: .semibold,
+                                design: .rounded
+                            )
+                        )
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.65)
+                        .frame(width: 21)
+                }
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
             }
             .accessibilityLabel("Tabs")
             .accessibilityValue(Text(manager.tabs.count, format: .number))
-            Spacer(minLength: 0)
+
             Menu {
-                Button("New tab", systemImage: "plus") { manager.add() }
-                    .keyboardShortcut("t", modifiers: .command)
-                Button("Private tab", systemImage: "hand.raised") { manager.add(isPrivate: true) }
+                Section {
+                    Button("New tab", systemImage: "plus") { manager.add() }
+                        .keyboardShortcut("t", modifiers: .command)
+                    Button("Private tab", systemImage: "hand.raised") {
+                        manager.add(isPrivate: true)
+                    }
                     .keyboardShortcut("n", modifiers: [.command, .shift])
-                Button("Close tab", systemImage: "xmark") {
-                    if let tab = manager.selectedTab { manager.close(tab) }
+                    Button("Close tab", systemImage: "xmark") {
+                        if let tab = manager.selectedTab { manager.close(tab) }
+                    }
+                    .disabled(manager.selectedTab == nil)
+                    .keyboardShortcut("w", modifiers: .command)
                 }
-                .keyboardShortcut("w", modifiers: .command)
-                Button("Reload", systemImage: "arrow.clockwise", action: session.reload)
-                    .disabled(session.isHome)
+
+                Section {
+                    Button("Reload", systemImage: "arrow.clockwise") {
+                        session.reload()
+                    }
+                    .disabled(!hasPage)
                     .keyboardShortcut("r", modifiers: .command)
-                if let url = session.url, !session.isHome {
-                    Button("Copy link", systemImage: "doc.on.doc") { UIPasteboard.general.url = url }
-                    ShareLink(item: url) { Label("Share website", systemImage: "square.and.arrow.up") }
-                }
-                Button("Add bookmark", systemImage: "star") {
-                    if let url = session.url { data.addBookmark(title: session.title, url: url) }
-                }
-                .disabled(session.isHome || session.url == nil)
-                Button("Find on page", systemImage: "magnifyingglass", action: find)
-                    .disabled(session.isHome)
+
+                    Button(
+                        "Find on page",
+                        systemImage: "magnifyingglass",
+                        action: find
+                    )
+                    .disabled(!hasPage)
                     .keyboardShortcut("f", modifiers: .command)
-                Button(session.desktopMode ? "Request mobile website" : "Request desktop website", systemImage: "desktopcomputer") {
-                    session.setDesktopMode(!session.desktopMode)
+
+                    Button(
+                        session.desktopMode
+                            ? "Request mobile website"
+                            : "Request desktop website",
+                        systemImage: "desktopcomputer"
+                    ) {
+                        session.setDesktopMode(!session.desktopMode)
+                    }
+                    .disabled(!hasPage)
                 }
-                .disabled(session.isHome)
-                Button("Downloads", systemImage: "arrow.down.circle", action: downloads)
-                Button("Bookmarks", systemImage: "star", action: bookmarks)
-                Button("History", systemImage: "clock", action: history)
-                Button("Settings", systemImage: "gearshape", action: settings)
+
+                if let url = session.url, hasPage {
+                    Section {
+                        Button("Copy link", systemImage: "doc.on.doc") {
+                            UIPasteboard.general.url = url
+                        }
+                        ShareLink(item: url) {
+                            Label(
+                                "Share website",
+                                systemImage: "square.and.arrow.up"
+                            )
+                        }
+                        Button("Add bookmark", systemImage: "star") {
+                            data.addBookmark(title: session.title, url: url)
+                        }
+                    }
+                }
+
+                Section {
+                    Button("Bookmarks", systemImage: "star", action: bookmarks)
+                    Button("History", systemImage: "clock", action: history)
+                    Button(
+                        "Downloads",
+                        systemImage: "arrow.down.circle",
+                        action: downloads
+                    )
+                }
+
+                Section {
+                    Button(
+                        "Developer Tools",
+                        systemImage: "chevron.left.forwardslash.chevron.right",
+                        action: developerTools
+                    )
+                    .disabled(!hasPage)
+
+                    Button(
+                        "Settings",
+                        systemImage: "gear",
+                        action: settings
+                    )
+                }
             } label: {
-                Label("More", systemImage: "ellipsis").frame(minWidth: 44, minHeight: 44)
+                Image(systemName: "ellipsis")
+                    .font(.title3.weight(.medium))
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
+            .accessibilityLabel("More options")
         }
         .labelStyle(.iconOnly)
         .buttonStyle(.plain)
         .font(.title3)
-        .frame(minHeight: 56)
-        .padding(.horizontal, 16)
-        .background(ThemeManager.surface(scheme), in: RoundedRectangle(cornerRadius: 26))
         .foregroundStyle(ThemeManager.foreground(scheme))
+        .padding(.horizontal, dynamicTypeSize.isAccessibilitySize ? 8 : 12)
+        .frame(minHeight: 56)
+        .background {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(ThemeManager.surface(scheme))
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(
+                    ThemeManager.gold(scheme).opacity(0.16),
+                    lineWidth: 1
+                )
+        }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
         .frame(maxWidth: 520)
         .frame(maxWidth: .infinity)
     }
+
+    private func navigationButton(
+        _ title: LocalizedStringKey,
+        symbol: String,
+        enabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 18, weight: .medium))
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
+        }
+        .disabled(!enabled)
+        .accessibilityLabel(title)
+    }
+}
+
+#Preview("Navigation Bar") {
+    BrowserNavigationBar(
+        session: BrowserSession(),
+        manager: BrowserTabManager(),
+        data: BrowserDataService(),
+        tabs: {},
+        bookmarks: {},
+        history: {},
+        downloads: {},
+        find: {},
+        settings: {},
+        developerTools: {}
+    )
+    .padding()
 }
 
 struct BrowserSearchView: View {
@@ -292,29 +637,66 @@ struct BrowserSearchView: View {
                     .onSubmit(open)
                 if !text.isEmpty {
                     Section("On this device") {
-                        ForEach(Array(data.bookmarks.filter {
-                            $0.title.localizedCaseInsensitiveContains(text) || $0.url.localizedCaseInsensitiveContains(text)
-                        }.prefix(4))) { bookmark in
+                        ForEach(
+                            Array(
+                                data.bookmarks.filter {
+                                    $0.title.localizedCaseInsensitiveContains(
+                                        text
+                                    )
+                                        || $0.url
+                                            .localizedCaseInsensitiveContains(
+                                                text
+                                            )
+                                }.prefix(4)
+                            )
+                        ) { bookmark in
                             Button {
                                 submit(bookmark.url)
                                 dismiss()
-                            } label: { BrowserLibraryRow(title: bookmark.title, url: bookmark.url, symbol: "star") }
+                            } label: {
+                                BrowserLibraryRow(
+                                    title: bookmark.title,
+                                    url: bookmark.url,
+                                    symbol: "star"
+                                )
+                            }
                         }
-                        ForEach(Array(data.history.filter {
-                            $0.title.localizedCaseInsensitiveContains(text) || $0.url.localizedCaseInsensitiveContains(text)
-                        }.prefix(4))) { entry in
+                        ForEach(
+                            Array(
+                                data.history.filter {
+                                    $0.title.localizedCaseInsensitiveContains(
+                                        text
+                                    )
+                                        || $0.url
+                                            .localizedCaseInsensitiveContains(
+                                                text
+                                            )
+                                }.prefix(4)
+                            )
+                        ) { entry in
                             Button {
                                 submit(entry.url)
                                 dismiss()
-                            } label: { BrowserLibraryRow(title: entry.title, url: entry.url, symbol: "clock") }
+                            } label: {
+                                BrowserLibraryRow(
+                                    title: entry.title,
+                                    url: entry.url,
+                                    symbol: "clock"
+                                )
+                            }
                         }
                     }
                 }
                 Section {
                     Button("Open", systemImage: "arrow.up.right", action: open)
-                        .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(
+                            text.trimmingCharacters(in: .whitespacesAndNewlines)
+                                .isEmpty
+                        )
                 } footer: {
-                    Text("Your typing stays on this device until you open a website or submit a search.")
+                    Text(
+                        "Your typing stays on this device until you open a website or submit a search."
+                    )
                 }
             }
             .navigationTitle("Explore")
@@ -331,8 +713,17 @@ struct BrowserSearchView: View {
     }
 
     private func open() {
-        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else { return }
         submit(text)
         dismiss()
     }
+}
+
+#Preview("Browser Error") {
+    BrowserErrorView(
+        failure: .invalidAddress,
+        retry: {},
+        edit: {}
+    )
 }

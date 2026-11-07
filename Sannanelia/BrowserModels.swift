@@ -1,3 +1,10 @@
+//
+//  BrowserModels.swift
+//  Sannanelia
+//
+//  Created by Tufan Cakir on 07.11.26.
+//
+
 import Foundation
 import SwiftData
 
@@ -63,8 +70,15 @@ final class PersistedBrowserTab {
     var sortOrder: Int
     var isSelected: Bool
 
-    init(id: UUID, workspaceID: String, title: String, url: String?, isHome: Bool,
-         sortOrder: Int, isSelected: Bool) {
+    init(
+        id: UUID,
+        workspaceID: String,
+        title: String,
+        url: String?,
+        isHome: Bool,
+        sortOrder: Int,
+        isSelected: Bool
+    ) {
         self.id = id
         self.workspaceID = workspaceID
         self.title = title

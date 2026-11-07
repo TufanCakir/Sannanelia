@@ -1,3 +1,10 @@
+//
+//  BrowserFindView.swift
+//  Sannanelia
+//
+//  Created by Tufan Cakir on 07.11.26.
+//
+
 import SwiftUI
 import WebKit
 
@@ -17,9 +24,13 @@ struct BrowserFindView: View {
                     .submitLabel(.search)
                     .onSubmit { search(backwards: false) }
                 HStack {
-                    Button("Previous match", systemImage: "chevron.up") { search(backwards: true) }
+                    Button("Previous match", systemImage: "chevron.up") {
+                        search(backwards: true)
+                    }
                     Spacer()
-                    Button("Next match", systemImage: "chevron.down") { search(backwards: false) }
+                    Button("Next match", systemImage: "chevron.down") {
+                        search(backwards: false)
+                    }
                 }
                 .disabled(query.isEmpty)
                 if let found {
@@ -30,7 +41,9 @@ struct BrowserFindView: View {
             .navigationTitle("Find on page")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
             }
             .onAppear { focused = true }
         }
