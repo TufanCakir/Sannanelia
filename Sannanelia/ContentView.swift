@@ -68,6 +68,7 @@ private struct BrowserWorkspaceView: View {
 
     @State private var sheet: BrowserSheet?
     @State private var promptText = ""
+    @State private var showingMaps = false
 
     @AppStorage("appearance") private var appearance = "system"
     @AppStorage("searchEngine") private var searchEngine =
@@ -108,7 +109,10 @@ private struct BrowserWorkspaceView: View {
                     bookmarks: { sheet = .bookmarks },
                     history: { sheet = .history },
                     privateTab: { manager.add(isPrivate: true) },
-                    open: session.load
+                    open: session.load,
+                    maps: {
+                        showingMaps = true
+                    }
                 )
             } else if let failure = session.failure {
                 BrowserErrorView(
@@ -194,7 +198,6 @@ private struct BrowserWorkspaceView: View {
                         ) ?? .google
                     )
                 }
-
             case .find:
                 BrowserFindView(session: session)
 
@@ -222,6 +225,26 @@ private struct BrowserWorkspaceView: View {
             case .developerTools:
                 BrowserDeveloperToolsView(session: session)
             }
+        }
+
+        // MARK: - Native Apple Maps
+
+        .sheet(isPresented: $showingMaps) {
+            NavigationStack {
+                SannaneliaMapsView()
+                    .navigationTitle("Maps")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") {
+                                showingMaps = false
+                            }
+                        }
+                    }
+            }
+        }
+        .onChange(of: session.dialog?.id) {
+            promptText = session.dialog?.defaultText ?? ""
         }
         .onChange(of: session.dialog?.id) {
             promptText = session.dialog?.defaultText ?? ""

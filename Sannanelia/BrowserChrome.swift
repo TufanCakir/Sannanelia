@@ -177,6 +177,8 @@ struct BrowserHomeView: View {
 
     let open: (URL) -> Void
 
+    let maps: () -> Void
+
     @State private var searchText = ""
 
     @FocusState private var isSearchFocused: Bool
@@ -366,17 +368,27 @@ struct BrowserHomeView: View {
     }
 
     private var shortcuts: some View {
-
         LazyVGrid(columns: columns, spacing: 12) {
-
             shortcut("Bookmarks", icon: "star", action: bookmarks)
 
-            shortcut("History", icon: "clock.arrow.circlepath", action: history)
+            shortcut(
+                "History",
+                icon: "clock.arrow.circlepath",
+                action: history
+            )
 
-            shortcut("Private tab", icon: "hand.raised", action: privateTab)
+            shortcut(
+                "Private tab",
+                icon: "hand.raised",
+                action: privateTab
+            )
 
+            shortcut(
+                "Maps",
+                icon: "map",
+                action: maps
+            )
         }
-
     }
 
     private func shortcut(
@@ -626,22 +638,15 @@ struct BrowserHomeView: View {
 }
 
 #Preview {
-
     BrowserHomeView(
-
         search: { _ in },
-
         data: BrowserDataService(),
-
         bookmarks: {},
-
         history: {},
-
         privateTab: {},
-        open: { _ in }
-
+        open: { _ in },
+        maps: {}
     )
-
 }
 
 struct BrowserErrorView: View {
