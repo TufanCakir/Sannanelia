@@ -8,6 +8,7 @@
 import Foundation
 import Observation
 import SwiftData
+import UniformTypeIdentifiers
 import WebKit
 
 @MainActor @Observable
@@ -29,6 +30,7 @@ final class BrowserDownloadItem: Identifiable {
     var filename: String
     var fileURL: URL?
     var status: Status
+    var failureMessage: String?
     var fractionCompleted = 0.0
     var totalBytes: Int64 = 0
 
@@ -49,6 +51,33 @@ final class BrowserDownloadItem: Identifiable {
 final class BrowserDownloadManager: NSObject, WKDownloadDelegate {
     private(set) var items: [BrowserDownloadItem] = []
     var storageError = false
+    var mediaError: LocalizedStringResource?
+    private(set) var isStarting = false
+    @ObservationIgnored private var privateGeneration = UUID()
+
+    func startMedia(_ url: URL, session: BrowserSession, isPrivate: Bool) {
+        guard !isStarting else { return }
+        guard BrowserMediaPolicy.isDirectURL(url) else {
+            mediaError =
+                "Use a direct video or audio link. Streaming playlists and protected players cannot be saved here."
+            return
+        }
+        isStarting = true
+        let generation = privateGeneration
+        session.webView.startDownload(using: URLRequest(url: url)) {
+            [weak self] download in
+            guard let self else {
+                download.cancel { _ in }
+                return
+            }
+            self.isStarting = false
+            guard !isPrivate || generation == self.privateGeneration else {
+                download.cancel { _ in }
+                return
+            }
+            self.register(download, isPrivate: isPrivate)
+        }
+    }
     @ObservationIgnored private var context: ModelContext?
     @ObservationIgnored private var active:
         [ObjectIdentifier: (WKDownload, BrowserDownloadItem)] = [:]
@@ -127,10 +156,35 @@ final class BrowserDownloadManager: NSObject, WKDownloadDelegate {
             completionHandler(nil)
             return
         }
+        guard
+            BrowserMediaPolicy.accepts(
+                mimeType: response.mimeType,
+                filename: suggestedFilename
+            ),
+            (response as? HTTPURLResponse).map({
+                (200...299).contains($0.statusCode)
+            }) ?? true
+        else {
+            mediaError =
+                "This link does not provide a downloadable video or audio file. Open the video on its website and check again."
+            item.status = .failed
+            completionHandler(nil)
+            finish(download)
+            items.removeAll { $0.id == item.id }
+            return
+        }
         let proposed = (suggestedFilename as NSString).lastPathComponent
-        let filename =
+        var filename =
             proposed.isEmpty || proposed == "." || proposed == ".."
             ? "Download" : proposed
+        if !BrowserMediaPolicy.extensions.contains(
+            (filename as NSString).pathExtension.lowercased()
+        ),
+            let mime = response.mimeType,
+            let ext = UTType(mimeType: mime)?.preferredFilenameExtension
+        {
+            filename += "." + ext
+        }
         let folder = (item.isPrivate ? privateRoot : Self.root)
             .appending(path: item.id.uuidString, directoryHint: .isDirectory)
         do {
@@ -168,6 +222,7 @@ final class BrowserDownloadManager: NSObject, WKDownloadDelegate {
     ) {
         guard let item = active[ObjectIdentifier(download)]?.1 else { return }
         item.status = .failed
+        item.failureMessage = error.localizedDescription
         save(item)
         finish(download)
     }
@@ -216,6 +271,7 @@ final class BrowserDownloadManager: NSObject, WKDownloadDelegate {
     }
 
     func endPrivateSession() {
+        privateGeneration = UUID()
         let privateItems = items.filter(\.isPrivate)
         for item in privateItems { delete(item) }
         do {

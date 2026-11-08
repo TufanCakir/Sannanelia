@@ -109,6 +109,19 @@ private struct BrowserWorkspaceView: View {
                         .font(.caption.weight(.semibold)).padding(.top, 4)
                 }
                 BrowserAddressBar(session: session) { sheet = .search }
+                if !session.isHome {
+                    Button {
+                        sheet = .downloads
+                    } label: {
+                        Label(
+                            "Save video or music",
+                            systemImage: "arrow.down.circle"
+                        )
+                        .font(.subheadline.weight(.medium))
+                        .padding(.vertical, 8)
+                    }
+                    .accessibilityIdentifier("mediaDownloads")
+                }
                 if data.storageError || manager.persistenceError {
                     HStack {
                         Text("Changes could not be saved").font(.caption)
@@ -156,7 +169,12 @@ private struct BrowserWorkspaceView: View {
                             ?? .google
                     )
                 }
-            case .downloads: BrowserDownloadsView(manager: manager.downloads)
+            case .downloads:
+                BrowserDownloadsView(
+                    manager: manager.downloads,
+                    session: session,
+                    isPrivate: manager.selectedTab?.isPrivate ?? false
+                )
             case .find: BrowserFindView(session: session)
             case .settings: BrowserSettingsView(data: data, manager: manager)
             case .tabs: BrowserTabGridView(manager: manager)
@@ -166,6 +184,9 @@ private struct BrowserWorkspaceView: View {
             case .developerTools:
                 BrowserDeveloperToolsView(session: session)
             }
+        }
+        .onChange(of: manager.downloads.items.count) { oldCount, newCount in
+            if newCount > oldCount { sheet = .downloads }
         }
         .onChange(of: session.dialog?.id) {
             promptText = session.dialog?.defaultText ?? ""

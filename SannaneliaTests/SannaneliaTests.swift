@@ -185,6 +185,70 @@ struct SannaneliaTests {
         }
     }
 
+    @Test func mediaDownloadsRejectPagesAndStreamingManifests() throws {
+        #expect(
+            BrowserMediaPolicy.accepts(
+                mimeType: "video/mp4",
+                filename: "movie.mp4"
+            )
+        )
+        #expect(
+            BrowserMediaPolicy.accepts(
+                mimeType: "audio/mpeg",
+                filename: "song.mp3"
+            )
+        )
+        #expect(
+            BrowserMediaPolicy.accepts(
+                mimeType: "application/octet-stream",
+                filename: "song.m4a"
+            )
+        )
+        #expect(
+            !BrowserMediaPolicy.accepts(
+                mimeType: "text/html",
+                filename: "movie.mp4"
+            )
+        )
+        #expect(
+            !BrowserMediaPolicy.accepts(
+                mimeType: "application/pdf",
+                filename: "book.pdf"
+            )
+        )
+        #expect(
+            !BrowserMediaPolicy.accepts(
+                mimeType: "audio/x-mpegurl",
+                filename: "playlist"
+            )
+        )
+        #expect(
+            !BrowserMediaPolicy.accepts(
+                mimeType: "video/mp4",
+                filename: "playlist.m3u8"
+            )
+        )
+        #expect(
+            !BrowserMediaPolicy.accepts(
+                mimeType: "application/dash+xml",
+                filename: "manifest"
+            )
+        )
+        for value in [
+            "blob:https://example.com/id", "file:///tmp/video.mp4",
+            "https://example.com/live.m3u8",
+            "https://user:pass@example.com/song.mp3",
+        ] {
+            let url = try #require(URL(string: value))
+            #expect(!BrowserMediaPolicy.isDirectURL(url))
+        }
+        #expect(
+            BrowserMediaPolicy.isDirectURL(
+                try #require(URL(string: "https://example.com/media?id=1"))
+            )
+        )
+    }
+
     @Test func bookmarksAndHistoryAvoidDuplicatesAndDeleteSeparately() throws {
         let storage = try container()
         let data = BrowserDataService()
