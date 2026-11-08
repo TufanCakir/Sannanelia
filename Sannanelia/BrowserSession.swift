@@ -52,6 +52,8 @@ struct BrowserScriptDialog: Identifiable {
 @MainActor @Observable
 final class BrowserSession: NSObject, WKNavigationDelegate, WKUIDelegate {
     @ObservationIgnored let webView: WKWebView
+    @ObservationIgnored private let videoDetector: BrowserVideoDetector
+    var detectedVideo: BrowserDetectedVideo?
     @ObservationIgnored private var observations: [NSKeyValueObservation] = []
     var url: URL?
     var title = ""
@@ -96,6 +98,25 @@ final class BrowserSession: NSObject, WKNavigationDelegate, WKUIDelegate {
         let bridge = BrowserConsoleBridge(store: store)
         let controller = configuration.userContentController
 
+        // MARK: - Video Detection
+
+        let detector = BrowserVideoDetector()
+
+        controller.add(
+            detector,
+            contentWorld: .page,
+            name: BrowserVideoDetector.handlerName
+        )
+
+        controller.addUserScript(
+            WKUserScript(
+                source: BrowserVideoDetector.script,
+                injectionTime: .atDocumentEnd,
+                forMainFrameOnly: false,
+                in: .page
+            )
+        )
+
         controller.add(
             bridge,
             contentWorld: .page,
@@ -115,6 +136,7 @@ final class BrowserSession: NSObject, WKNavigationDelegate, WKUIDelegate {
 
         self.consoleStore = store
         self.consoleBridge = bridge
+        self.videoDetector = detector
 
         self.webView = WKWebView(
             frame: .zero,
@@ -124,6 +146,10 @@ final class BrowserSession: NSObject, WKNavigationDelegate, WKUIDelegate {
         super.init()
 
         // MARK: - WebView Setup
+        detector.onVideoDetected = { [weak self] video in
+            guard let self else { return }
+            self.detectedVideo = video
+        }
 
         webView.navigationDelegate = self
         webView.uiDelegate = self
@@ -334,10 +360,13 @@ final class BrowserSession: NSObject, WKNavigationDelegate, WKUIDelegate {
 
     func load(_ destination: URL) {
         finishDialog(nil)
+        detectedVideo = nil
+
         requestedURL = destination
         isHome = false
         failure = nil
         url = destination
+
         webView.load(URLRequest(url: destination))
         onStateChanged?()
     }
@@ -376,6 +405,15 @@ final class BrowserSession: NSObject, WKNavigationDelegate, WKUIDelegate {
         webView.configuration.userContentController
             .removeScriptMessageHandler(
                 forName: "sannaneliaConsole",
+                contentWorld: .page
+            )
+
+        videoDetector.onVideoDetected = nil
+        detectedVideo = nil
+
+        webView.configuration.userContentController
+            .removeScriptMessageHandler(
+                forName: BrowserVideoDetector.handlerName,
                 contentWorld: .page
             )
     }

@@ -102,6 +102,51 @@ private struct BrowserWorkspaceView: View {
         }
         .foregroundStyle(ThemeManager.foreground(scheme))
         .tint(ThemeManager.accent(scheme))
+        .overlay {
+            if !session.isHome,
+                session.failure == nil,
+                let video = session.detectedVideo
+            {
+
+                ZStack {
+                    Color.black.opacity(0.35)
+                        .ignoresSafeArea()
+
+                    BrowserVideoDownloadOverlay(
+                        video: video,
+                        download: {
+                            if let url = video.url,
+                                BrowserMediaPolicy.isDirectURL(url)
+                            {
+
+                                manager.downloads.startMedia(
+                                    url,
+                                    session: session,
+                                    isPrivate: manager.selectedTab?.isPrivate
+                                        ?? false
+                                )
+                            }
+
+                            session.detectedVideo = nil
+                        },
+                        cancel: {
+                            session.detectedVideo = nil
+                        },
+                        canDownload: video.url.map {
+                            BrowserMediaPolicy.isDirectURL($0)
+                        } ?? false
+                    )
+                }
+                .transition(
+                    .opacity.combined(with: .scale(scale: 0.95))
+                )
+                .zIndex(10)
+            }
+        }
+        .animation(
+            .easeInOut(duration: 0.2),
+            value: session.detectedVideo != nil
+        )
         .safeAreaInset(edge: .top, spacing: 0) {
             VStack(spacing: 0) {
                 if manager.selectedTab?.isPrivate == true {

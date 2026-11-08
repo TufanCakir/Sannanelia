@@ -33,10 +33,6 @@ struct BrowserOnboardingView: View {
             let compact = geometry.size.width < 600
 
             VStack(spacing: 0) {
-                header
-                    .padding(.top, 16)
-                    .padding(.bottom, 12)
-
                 TabView(selection: $page) {
                     welcomePage.tag(0)
                     searchPage.tag(1)
@@ -56,41 +52,27 @@ struct BrowserOnboardingView: View {
         .foregroundStyle(ThemeManager.foreground(scheme))
     }
 
-    // MARK: - Header
-
-    private var header: some View {
-        HStack(spacing: 10) {
-            Image(
-                systemName: BrowserAppearance.symbol(
-                    scheme,
-                    light: "sun.max",
-                    dark: "moon"
-                )
-            )
-            .contentTransition(.symbolEffect(.replace))
-
-            Text("SANNANELIA")
-                .tracking(3)
-        }
-        .font(.caption.weight(.semibold))
-        .foregroundStyle(ThemeManager.accent(scheme))
-        .accessibilityElement(children: .combine)
-    }
-
     // MARK: - Welcome
 
     private var welcomePage: some View {
         pageContainer {
             VStack(spacing: 22) {
-                Image(systemName: "sun.max")
-                    .font(.system(size: 68, weight: .ultraLight))
-                    .foregroundStyle(ThemeManager.gold(scheme))
-                    .frame(width: 140, height: 140)
-                    .background(
-                        ThemeManager.surface(scheme),
-                        in: Circle()
+                Image(
+                    systemName: BrowserAppearance.symbol(
+                        scheme,
+                        light: "sun.max",
+                        dark: "moon"
                     )
-                    .accessibilityHidden(true)
+                )
+                .contentTransition(.symbolEffect(.replace))
+                .font(.system(size: 68, weight: .ultraLight))
+                .foregroundStyle(ThemeManager.gold(scheme))
+                .frame(width: 140, height: 140)
+                .background(
+                    ThemeManager.surface(scheme),
+                    in: Circle()
+                )
+                .accessibilityHidden(true)
 
                 Text("Welcome to Sannanelia")
                     .font(.system(.largeTitle, design: .serif))

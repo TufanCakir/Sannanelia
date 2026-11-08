@@ -69,10 +69,12 @@ struct SannaneliaApp: App {
                     BrowserBookmark.self,
                 BrowserHistoryEntry.self,
                 PersistedBrowserTab.self,
-                DownloadRecord.self
+                DownloadRecord.self,
+                BrowserMusicPlaylist.self
             )
         } catch {
             storageFailed = true
+            print("SwiftData error: \(error.localizedDescription)")
         }
     }
 }
