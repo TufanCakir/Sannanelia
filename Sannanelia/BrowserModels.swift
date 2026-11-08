@@ -9,24 +9,8 @@ import Foundation
 import SwiftData
 
 @Model
-final class DownloadRecord {
-    @Attribute(.unique) var id: UUID
-    var filename: String
-    var relativePath: String
-    var createdAt: Date
-    var status: String
-
-    init(id: UUID, filename: String, relativePath: String, status: String) {
-        self.id = id
-        self.filename = filename
-        self.relativePath = relativePath
-        self.status = status
-        createdAt = .now
-    }
-}
-
-@Model
 final class BrowserBookmark {
+
     @Attribute(.unique) var id: UUID
     var title: String
     var url: String
@@ -45,6 +29,7 @@ final class BrowserBookmark {
 
 @Model
 final class BrowserHistoryEntry {
+
     @Attribute(.unique) var id: UUID
     var url: String
     var title: String
@@ -62,6 +47,7 @@ final class BrowserHistoryEntry {
 
 @Model
 final class PersistedBrowserTab {
+
     @Attribute(.unique) var id: UUID
     var workspaceID: String
     var title: String
